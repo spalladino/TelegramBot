@@ -71,13 +71,13 @@ module TelegramBot
       end
 
       if ssl_certificate_path && ssl_key_path
-        ssl = OpenSSL::SSL::Context.new
+        ssl = OpenSSL::SSL::Context::Server.new
         ssl.certificate_chain = ssl_certificate_path.not_nil!
         ssl.private_key = ssl_key_path.not_nil!
-        server.ssl = ssl
+        server.tls = ssl
       end
 
-      logger.info("Listening for Telegram requests in #{bind_address}:#{bind_port}#{" with ssl" if server.ssl}")
+      logger.info("Listening for Telegram requests in #{bind_address}:#{bind_port}#{" with ssl" if server.tls}")
       server.listen
     end
 
@@ -145,7 +145,7 @@ module TelegramBot
                    multipart_params = HTTP::Client::MultipartBody.new(params)
                    client.post_multipart method, multipart_params
                  elsif params.any?
-                   stringified_params = params.reduce(Hash(String, String).new) { |h, k, v| h[k] = v.to_s; h }
+                   stringified_params = params.reduce(Hash(String, String).new) { |h, (k, v)| h[k] = v.to_s; h }
                    client.post_form method, stringified_params
                  else
                    client.post method
@@ -173,7 +173,7 @@ module TelegramBot
     end
 
     private def get_updates(offset = @nextoffset, limit : Int32? = nil, timeout : Int32? = @updates_timeout)
-      data = request("getUpdates", force_http: true, params: {"offset": "#{offset}"}).not_nil!
+      data = request("getUpdates", force_http: true, params: {"offset" => "#{offset}"}).not_nil!
 
       r = [] of Update
       data.each do |json|
@@ -189,7 +189,7 @@ module TelegramBot
     macro def_request(name, *args)
         request {{name}}, force_http: false, params: {
           {% for arg in args %}
-            {{arg.stringify}} : {{arg.id}},
+            {{arg.stringify}} => {{arg.id}},
           {% end %}
         }
     end
@@ -197,7 +197,7 @@ module TelegramBot
     macro def_force_request(name, *args)
         request {{name}}, force_http: true, params: {
           {% for arg in args %}
-            {{arg.stringify}} : {{arg.id}},
+            {{arg.stringify}} => {{arg.id}},
           {% end %}
         }
     end
